@@ -12,6 +12,23 @@ type Broker () =
     //----------------------------------------------------------------------------------------------------
 
     //----------------------------------------------------------------------------------------------------
+    static member startProcessRedirectedTry redirStdIn redirStdOut redirStdErr
+                                            processName arguments =
+
+        let proc = new Process()
+
+        proc.StartInfo.UseShellExecute <- false
+        proc.StartInfo.RedirectStandardInput <- redirStdIn
+        proc.StartInfo.RedirectStandardOutput <- redirStdOut
+        proc.StartInfo.RedirectStandardError <- redirStdErr
+        proc.StartInfo.FileName <- processName
+        proc.StartInfo.Arguments <- arguments
+        proc.Start() |> ignore
+
+        proc
+    //----------------------------------------------------------------------------------------------------
+
+    //----------------------------------------------------------------------------------------------------
     static member startAndWaitForProcessAsyncTry processName arguments =
 
         task {

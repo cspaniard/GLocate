@@ -1,7 +1,6 @@
 namespace GLocate.GUI
 
 open System
-open System.IO
 open GLib        // Necesario. Ambiguedad entre System.Object y GLib.Object
 open Gdk
 open Gtk
@@ -29,36 +28,36 @@ type MainWindow(WindowIdName : string) as this =
 
     let FileListTreePopup = new Menu()
 
-    let setProgramIsBusy (isBusy : bool) =
-        let newVal = not isBusy
-
-        FileToSearchEntry.Sensitive <- newVal
-        SearchButton.Sensitive <- newVal
-        UpdateDbButton.Sensitive <- newVal
-
     let VM = MainWindowVM()
     let binder = Binder(VM)
 
     do
         //------------------------------------------------------------------------------------------------
-        // Prepara las columnas del FileListTree.
+        // Prepara los bindings.
         //------------------------------------------------------------------------------------------------
+        let boolNegate (v : System.Object) _ = (v :?> bool) |> not :> System.Object
 
         binder
             .AddBinding(MainLabel, "label", nameof VM.MainMessage, OneWay)
             .AddBinding(FileToSearchEntry, "text", nameof VM.FileToSearch)
+            .AddBinding(FileToSearchEntry, "sensitive", nameof VM.IsSearching, OneWay, boolNegate)
+            .AddBinding(FileToSearchEntry, "sensitive", nameof VM.IsUpdatingDb, OneWay, boolNegate)
             .AddBinding(IgnoreCaseCheckButton, "active", nameof VM.IgnoreCase)
             .AddBinding(IgnoreAccentsCheckButton, "active", nameof VM.IgnoreAccents)
             .AddBinding(RegularExpressionsCheckButton, "active", nameof VM.RegularExpressions)
             .AddBinding(BaseNameOnlyCheckButton, "active", nameof VM.BaseNameOnly)
+            .AddBinding(SearchButton, "sensitive", nameof VM.IsSearching, OneWay, boolNegate)
+            .AddBinding(SearchButton, "sensitive", nameof VM.IsUpdatingDb, OneWay, boolNegate)
+            .AddBinding(UpdateDbButton, "sensitive", nameof VM.IsSearching, OneWay, boolNegate)
+            .AddBinding(UpdateDbButton, "sensitive", nameof VM.IsUpdatingDb, OneWay, boolNegate)
         |> ignore
 
         //------------------------------------------------------------------------------------------------
         // Prepara las columnas del FileListTree.
         //------------------------------------------------------------------------------------------------
-        let myRenderer = new CellRendererText()
-        let myColumn = new TreeViewColumn("Senda", myRenderer, ([|"text" ; 0|] : obj[]))
-        FileListTree.AppendColumn(myColumn) |> ignore
+        let renderer = new CellRendererText()
+        let column = new TreeViewColumn("Senda", renderer, ([|"text" ; 0|] : obj[]))
+        FileListTree.AppendColumn(column) |> ignore
         //------------------------------------------------------------------------------------------------
 
         //------------------------------------------------------------------------------------------------
@@ -72,7 +71,7 @@ type MainWindow(WindowIdName : string) as this =
         //------------------------------------------------------------------------------------------------
         // Prepara y muestra la ventana.
         //------------------------------------------------------------------------------------------------
-        this.ThisWindow.Maximize()
+        // this.ThisWindow.Maximize()
         this.EnableCtrlQ()
 
         FileToSearchEntry.GrabFocus()
@@ -82,38 +81,6 @@ type MainWindow(WindowIdName : string) as this =
     //----------------------------------------------------------------------------------------------------
     // Funcionalidad
     //----------------------------------------------------------------------------------------------------
-
-    member _.RunSearch searchString (processLine : string -> unit) =
-        //------------------------------------------------------------------------------------------------
-        // Ejecuta el comando de búsqueda en segundo plano y procesa las líneas devueltas una a una.
-        // El procesado es agnóstico, lo realiza la función processLine que es pasada como parámetro.
-        //------------------------------------------------------------------------------------------------
-
-        task {
-            let myPossibleOptions = [(IgnoreCaseCheckButton, "-i")
-                                     (IgnoreAccentsCheckButton, "-t")
-                                     (RegularExpressionsCheckButton, "-r")
-                                     (BaseNameOnlyCheckButton, "-b")]
-
-            let mySelectedOptions =
-                myPossibleOptions
-                |> List.filter(fun (cb, _) -> cb.Active)
-                |> List.map snd
-                |> String.concat " "
-
-            use myProcess = new Diagnostics.Process()
-
-            myProcess.StartInfo.UseShellExecute <- false
-            myProcess.StartInfo.RedirectStandardOutput <- true
-            myProcess.StartInfo.FileName <- "/usr/bin/locate"
-            myProcess.StartInfo.Arguments <- $"%s{mySelectedOptions} %s{searchString}"
-            myProcess.Start() |> ignore
-
-            while not myProcess.StandardOutput.EndOfStream do
-                let! myLine = myProcess.StandardOutput.ReadLineAsync()
-                processLine myLine
-        }
-
 
     member _.GetFoundItemsCount() =
         //------------------------------------------------------------------------------------------------
@@ -128,21 +95,21 @@ type MainWindow(WindowIdName : string) as this =
     // Eventos.
     //----------------------------------------------------------------------------------------------------
 
+    //------------------------------------------------------------------------------------------------
+    // Responde al cierre de la ventana.
+    // Como es la ventana principal, también cierra la aplicación.
+    //------------------------------------------------------------------------------------------------
     member _.OnMainWindowDelete (_ : System.Object) (args : DeleteEventArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Responde al cierre de la ventana.
-        // Como es la ventana principal, también cierra la aplicación.
-        //------------------------------------------------------------------------------------------------
 
         args.RetVal <- true
         Application.Quit()
+    //------------------------------------------------------------------------------------------------
 
-
+    //------------------------------------------------------------------------------------------------
+    // Responde al evento de Copiar de menú contextual de FileListTree.
+    // Copia la línea seleccionada al portapapeles.
+    //------------------------------------------------------------------------------------------------
     member _.FileListTreePopup_Copy (_ : System.Object) (_ : EventArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Responde al evento de Copiar de menú contextual de FileListTree.
-        // Copia la línea seleccionada al portapapeles.
-        //------------------------------------------------------------------------------------------------
 
         let mutable myIter : TreeIter = TreeIter()
 
@@ -151,104 +118,78 @@ type MainWindow(WindowIdName : string) as this =
         if FileListStore.GetIter(&myIter, mySelectedPath) then
             let myFullPath = FileListStore.GetValue(myIter, 0).ToString()
             Clipboard.GetDefault(Display.Default).Text <- myFullPath
+    //------------------------------------------------------------------------------------------------
 
-
+    //------------------------------------------------------------------------------------------------
+    // Doble-Click en un línea de FileListTree.
+    // Normalmente, invoca dbus-send para abrir la carpeta contenedora con el fichero seleccionado.
+    //------------------------------------------------------------------------------------------------
     member _.FileListTreeRowActivated (_ : System.Object) (args : RowActivatedArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Doble-Click en un línea de FileListTree.
-        // Normalmente, invoca dbus-send para abrir la carpeta contenedora con el fichero seleccionado.
-        //------------------------------------------------------------------------------------------------
 
-        let mutable myIter = TreeIter()
+        try
+            let mutable treeIter = TreeIter()
 
-        if FileListStore.GetIter(&myIter, args.Path) then
-            let myFullPath = FileListStore.GetValue(myIter, 0).ToString()
+            match FileListStore.GetIter(&treeIter, args.Path) with
+            | true -> FileListStore.GetValue(treeIter, 0).ToString() |> VM.OpenContainingFolderTry
+            | false -> failwith "No se puede determinar el valor del elemento seleccionado."
 
-            // dbus no puede abrir sendas/ficheros con comas.
-            // En ese caso abrimos la carpeta con xdg-open pero el fichero no queda seleccionado.
+        with e -> this.ErrorDialogBox e.Message
+    //------------------------------------------------------------------------------------------------
 
-            if myFullPath.Contains(",") then
-                let myPathToOpen = if File.Exists(myFullPath) then $"\"{myFullPath}\"/.." else myFullPath
-
-                Diagnostics.Process.Start("xdg-open", myPathToOpen) |> ignore
-            else
-                let myArgs = ["--dest=org.freedesktop.FileManager1"; "--type=method_call"
-                              "/org/freedesktop/FileManager1"; "org.freedesktop.FileManager1.ShowItems";
-                              $"array:string:\"//{myFullPath}\""; "string:\"\""]
-                             |> String.concat " "
-
-                Console.WriteLine myArgs
-                Diagnostics.Process.Start("dbus-send", myArgs) |> ignore
-        else
-            this.ErrorDialogBox "No se puede determinar el valor del elemento seleccionado."
-
-
+    //------------------------------------------------------------------------------------------------
+    // Al pulsar Intro en FileToSearchEntry invoca el click de SearchButton.
+    //------------------------------------------------------------------------------------------------
     member _.FileToSearchEntryActivate (_ : System.Object) (_ : EventArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Al pulsar Intro en FileToSearchEntry invoca el click de SearchButton.
-        //------------------------------------------------------------------------------------------------
 
         Signal.Emit(SearchButton, "clicked") |> ignore
+    //------------------------------------------------------------------------------------------------
 
+    //------------------------------------------------------------------------------------------------
+    // Actualiza la base de datos invocando updatedb en modo elevado.
+    //------------------------------------------------------------------------------------------------
     member _.UpdateDbButtonClicked (_ : System.Object) (_ : EventArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Actualiza la base de datos invocando updatedb en modo elevado.
-        //------------------------------------------------------------------------------------------------
 
         task {
-            MainLabel.Text <- "Actualizando..."
-            FileListStore.Clear()
-            setProgramIsBusy true
+            try
+                FileListStore.Clear()
+                do! VM.UpdateDbAsyncTry()
+                FileToSearchEntry.GrabFocus()
+            with e -> this.ErrorDialogBox e.Message
+        }
+        |> ignore
+    //------------------------------------------------------------------------------------------------
 
-            let myProcess = Diagnostics.Process.Start("pkexec", "updatedb")
-            do! myProcess.WaitForExitAsync()
-
-            MainLabel.Text <- "Base de Datos Actualizada"
-            setProgramIsBusy false
-            FileToSearchEntry.GrabFocus()
-        } |> ignore
-
+    //------------------------------------------------------------------------------------------------
+    // Click en botón SearchButton.
+    // Establece: el preparado anterior, la ejecución de la búsqueda y el preparado posterior.
+    //------------------------------------------------------------------------------------------------
     member _.SearchButtonClicked (_ : System.Object) (_ : EventArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Click en botón SearchButton.
-        // Establece: el preparado anterior, la ejecución de la búsqueda y el preparado posterior.
-        //------------------------------------------------------------------------------------------------
 
         let addStringToList (string : string) =
             match string with
             | null -> ()
             | _ -> FileListStore.AppendValues([|string|]) |> ignore
 
-        let runSearch() =
-
-            task {
-                MainLabel.Text <- "Buscando..."
-                setProgramIsBusy true
+        task {
+            try
                 FileListStore.Clear()
-
-                do! System.Threading.Tasks.Task.Delay 100
-                do! this.RunSearch FileToSearchEntry.Text addStringToList
-
-                MainLabel.Text <- $"{this.GetFoundItemsCount()} elementos encontrados"
-                setProgramIsBusy false
+                do! VM.RunSearchAsyncTry addStringToList
                 FileToSearchEntry.GrabFocus()
-            } |> ignore
+            with e -> this.ErrorDialogBox e.Message
+        }
+        |> ignore
 
-        match FileToSearchEntry.Text.Length with
-        | 0 -> this.ErrorDialogBox "Debe de especificar qué quiere buscar."
-        | _ -> runSearch()
+    //------------------------------------------------------------------------------------------------
 
-
+    //------------------------------------------------------------------------------------------------
+    // Click Botón Derecho sobre FileListTree.
+    // Muestra el menú contextual.
+    //------------------------------------------------------------------------------------------------
     member _.FileListTreeButtonReleaseEvent (_ : System.Object) (args : ButtonReleaseEventArgs) =
-        //------------------------------------------------------------------------------------------------
-        // Click Botón Derecho sobre FileListTree.
-        // Muestra el menú contextual.
-        //------------------------------------------------------------------------------------------------
 
         let mySelectedRows = FileListTree.Selection.GetSelectedRows()
 
         if mySelectedRows.Length > 0 && args.Event.Button = 3u then
             FileListTreePopup.ShowAll()
             FileListTreePopup.Popup()
-
     //----------------------------------------------------------------------------------------------------
