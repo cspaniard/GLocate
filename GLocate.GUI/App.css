@@ -1,0 +1,18 @@
+button {
+}
+
+button:hover {
+}
+
+#company_id_label {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.titulos {
+    color: yellow;
+}
+
+.cabecera {
+    color: white;
+}

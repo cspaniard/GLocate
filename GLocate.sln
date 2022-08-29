@@ -1,0 +1,24 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Infrastructure", "Infrastructure\Infrastructure.fsproj", "{5105C1BD-3BEE-44E9-9FA9-57916D62F6B8}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GLocate.GUI", "GLocate.GUI\GLocate.GUI.fsproj", "{6EF1581B-8F23-4D71-ADE7-C3EFEC94FEF0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6EF1581B-8F23-4D71-ADE7-C3EFEC94FEF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6EF1581B-8F23-4D71-ADE7-C3EFEC94FEF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6EF1581B-8F23-4D71-ADE7-C3EFEC94FEF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6EF1581B-8F23-4D71-ADE7-C3EFEC94FEF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5105C1BD-3BEE-44E9-9FA9-57916D62F6B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5105C1BD-3BEE-44E9-9FA9-57916D62F6B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5105C1BD-3BEE-44E9-9FA9-57916D62F6B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5105C1BD-3BEE-44E9-9FA9-57916D62F6B8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+	EndGlobalSection
+EndGlobal

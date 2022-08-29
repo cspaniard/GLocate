@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <RootNamespace>GLocate.GUI</RootNamespace>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="App.css">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Include="MainWindow.glade">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <Compile Include="BaseWindow.fs" />
+        <Compile Include="MainWindowVM.fs" />
+        <Compile Include="MainWindow.fs" />
+        <Compile Include="Program.fs" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="GtkSharp" Version="3.24.24.38" />
+        <PackageReference Include="Motsoft.Binder" Version="1.1.2" />
+        <PackageReference Update="FSharp.Core" Version="6.0.5" />
+        <PackageReference Include="Motsoft.Util" Version="1.5.0" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\Infrastructure\Infrastructure.fsproj" />
+    </ItemGroup>
+</Project>
