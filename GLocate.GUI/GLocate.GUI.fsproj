@@ -3,6 +3,10 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net6.0</TargetFramework>
         <RootNamespace>GLocate.GUI</RootNamespace>
+        <AssemblyName>GLocate</AssemblyName>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DebugType>none</DebugType>
     </PropertyGroup>
     <ItemGroup>
         <None Include="App.css">
