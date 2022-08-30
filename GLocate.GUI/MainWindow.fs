@@ -10,9 +10,13 @@ open Motsoft.Binder.BindingProperties
 type MainWindow(WindowIdName : string) as this =
     inherit BaseWindow(WindowIdName)
 
-    //----------------------------------------------------------------------------------------------------
+    [<Literal>]
+    let VERSION = "2.0.0"
 
+
+    //----------------------------------------------------------------------------------------------------
     // Referencias a controles
+    //----------------------------------------------------------------------------------------------------
 
     let MainLabel = this.Gui.GetObject("MainLabel") :?> Label
     let FileToSearchEntry = this.Gui.GetObject("FileToSearchEntry") :?> SearchEntry
@@ -27,6 +31,7 @@ type MainWindow(WindowIdName : string) as this =
     let BaseNameOnlyCheckButton = this.Gui.GetObject("BaseNameOnlyCheckButton") :?> CheckButton
 
     let FileListTreePopup = new Menu()
+    //----------------------------------------------------------------------------------------------------
 
     let VM = MainWindowVM()
     let binder = Binder(VM)
@@ -71,7 +76,8 @@ type MainWindow(WindowIdName : string) as this =
         //------------------------------------------------------------------------------------------------
         // Prepara y muestra la ventana.
         //------------------------------------------------------------------------------------------------
-        // this.ThisWindow.Maximize()
+        this.ThisWindow.Title <- $"{this.ThisWindow.Title} - {VERSION}"
+        this.ThisWindow.Maximize()
         this.EnableCtrlQ()
 
         FileToSearchEntry.GrabFocus()
